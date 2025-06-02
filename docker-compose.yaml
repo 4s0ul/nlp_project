@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ./backend
+    container_name: stemming
+    ports:
+      - "8000:8000"
+    networks:
+      - db_network
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql+psycopg2://user:password@stemming-db:5432/stemming_db
+
+  db:
+    build:
+      context: ./backend
+      dockerfile: ./Dockerfile.postgres
+    container_name: stemming-db
+    restart: always
+    environment:
+      POSTGRES_DB: stemming_db
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    networks:
+      - db_network
+    ports:
+      - "5432:5432"
+
+  frontend:
+    build:
+      context: ./frontend
+    container_name: stemming-app
+    ports:
+      - "3000:3000" # assuming Vite serves on 3000
+    networks:
+      - db_network
+    depends_on:
+      - app
+
+networks:
+  db_network:
+    driver: bridge
+
+volumes:
+  postgres_data:

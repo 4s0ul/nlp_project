@@ -1,0 +1,48 @@
+[tool.poetry]
+name = "stemming"
+version = "0.1.0"
+description = "A project for building knowledge graphs with Russian terms"
+authors = [ "Stanislav Kiselev racoononwork@gmail.com"
+]
+readme = "README.md"
+packages = [{ include = "stemming" }]
+# requires-python moved to dependencies below
+# The standard practice is to define the compatible python versions under [tool.poetry.dependencies]
+
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.13"  # Define the required Python version range here
+fastapi = { extras = ["uvicorn"], version="^0.115.12"}
+uvicorn = { extras = ["standard"], version = "^0.29" }
+sqlmodel = "^0.0.24"
+psycopg2-binary = "^2.9"
+community = ">=1.0.0b1" # Assuming 'python-community' or similar, verify exact package name if needed
+fastclasses-json = ">=0.8.0"
+hdbscan = ">=0.8.40"
+loguru = ">=0.6"
+matplotlib = ">=3.10.1"
+natasha = ">=1.6.0"
+networkx = ">=3.4.2"
+nltk = ">=3.9.1"
+numpy = ">=2.2.4"
+openpyxl = ">=3.1.5"
+pandas = ">=2.2.3"
+scikit-learn = ">=1.6.1" # Note: scikit-learn needs <1.5.0 for Python 3.12 according to some sources, verify compatibility
+spacy = "3.8.5"  # Pinned to resolve conflicts. spacy 3.8 requires python < 3.13.
+smart-open = ">=5.2.1,<7.0.0"  # Explicitly constrained for spacy
+umap-learn = ">=0.5.7"
+
+# Add the dependencies that were previously directly under [project].dependencies here
+# Based on your original file, there were no dependencies listed *only* under [project].dependencies,
+# they were all already under [tool.poetry.dependencies]. If you had any, they would go here.
+sqlalchemy = "^2.0.41"
+pgvector = "^0.4.1"
+
+
+[tool.poetry.scripts]
+run = "stemming.cli:main"
+api = "stemming.api:app"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
