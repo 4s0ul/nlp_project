@@ -172,7 +172,6 @@
       <p class="error">Ошибка при загрузке похожих слов: {errorSimilar}</p>
     {:else if similar.length}
       <section class="section">
-        <h3>Похожие слова</h3>
         <NearestWords neighbors={similar} />
       </section>
     {/if}
