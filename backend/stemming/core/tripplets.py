@@ -262,7 +262,7 @@ def actual_extract_spo_from_description(
             "object_literal_lemma": nt['object_lemma'],
             "language": language_str,
             "source_sentence": nt['sentence'],
-            "info": f"Auto-extracted by Natasha from desc {description_id_for_context}"
+            "info": description_id_for_context
         })
     return db_triplets_data
 
