@@ -202,6 +202,12 @@ def populate_database_via_api(data_file: str, topic_name: str = "Science", max_r
 if __name__ == "__main__":
     # Example usage
     populate_database_via_api(
+        data_file="mendeleev_table.json",
+        topic_name="Химические Термины",
+        max_retries=3,
+        retry_delay=1.0
+    )
+    populate_database_via_api(
         data_file="unique_terms.json",
         topic_name="Химические Термины",
         max_retries=3,
