@@ -46,6 +46,19 @@
         data.cleaned_text || data.raw_text,
         data.lemmatized_text || data.cleaned_text || data.raw_text
       ];
+
+      let descriptionPipeline = [];
+
+
+      if (data.descriptions.length) {
+        const desc = data.descriptions[0];
+        descriptionPipeline = [
+          desc.raw_text,
+          desc.cleaned_text    || desc.raw_text,
+          desc.lemmatized_text || desc.cleaned_text || desc.raw_text
+        ];
+      }
+
       const definition = data.descriptions.length
         ? data.descriptions[0].raw_text
         : '';
@@ -55,6 +68,7 @@
         term: data.cleaned_text || data.raw_text,
         definition,
         pipeline,
+        descriptionPipeline,
         // neighbors пока пустой, заполним отдельно
         neighbors: []
       };
@@ -163,7 +177,18 @@
       <p class="definition">{detail.definition}</p>
     {/if}
 
-    <PipelineViz steps={detail.pipeline} />
+    <section class="definition-pipeline">
+      <h3>Этапы обработки термина</h3>
+      <PipelineViz steps={detail.pipeline} />
+    </section>
+
+
+   {#if detail.descriptionPipeline?.length}
+     <section class=" definition-pipeline pipeline-container">
+       <h3>Этапы обработки определения</h3>
+       <PipelineViz steps={detail.descriptionPipeline} />
+     </section>
+   {/if}
 
     <!-- Блок похожих слов -->
     {#if loadingSimilar}
@@ -240,5 +265,14 @@
   .error {
     color: #cc0000;
     margin-top: 1rem;
+  }
+
+ .definition-pipeline {
+    margin-top: 2rem;
+  }
+  .definition-pipeline h3 {
+    margin-bottom: 0.5rem;
+    font-size: 1rem;
+    color: #444;
   }
 </style>
