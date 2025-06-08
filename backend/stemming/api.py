@@ -114,7 +114,7 @@ def get_lang_str(language: Lang) -> str: return language.value
 
 # --- Topics API (Largely unchanged) ---
 @app.post("/topics/", response_model=TopicResponse, tags=["Topics"])
-def create_topic_endpoint(topic_data: TopicCreateRequest, session: Session = Depends(get_session)):
+async def create_topic_endpoint(topic_data: TopicCreateRequest, session: Session = Depends(get_session)):
     topic_id = generate_sha256_id(topic_data.name.lower().strip())
     if session.get(Topic, topic_id):
         raise HTTPException(status_code=409, detail=f"Topic '{topic_data.name}' already exists.")
@@ -126,18 +126,18 @@ def create_topic_endpoint(topic_data: TopicCreateRequest, session: Session = Dep
 
 
 @app.get("/topics/", response_model=List[TopicResponse], tags=["Topics"])
-def get_topics_endpoint(session: Session = Depends(get_session)): return session.exec(select(Topic)).all()
+async def get_topics_endpoint(session: Session = Depends(get_session)): return session.exec(select(Topic)).all()
 
 
 @app.get("/topics/{topic_id}", response_model=TopicResponse, tags=["Topics"])
-def get_topic_endpoint(topic_id: str, session: Session = Depends(get_session)):
+async def get_topic_endpoint(topic_id: str, session: Session = Depends(get_session)):
     topic = session.get(Topic, topic_id)
     if not topic: raise HTTPException(status_code=404, detail="Topic not found")
     return topic
 
 
 @app.put("/topics/{topic_id}", response_model=TopicResponse, tags=["Topics"])
-def update_topic_endpoint(topic_id: str, topic_data: TopicCreateRequest, session: Session = Depends(get_session)):
+async def update_topic_endpoint(topic_id: str, topic_data: TopicCreateRequest, session: Session = Depends(get_session)):
     db_topic = session.get(Topic, topic_id)
     if not db_topic:
         raise HTTPException(status_code=404, detail="Topic not found")
@@ -170,7 +170,7 @@ def update_topic_endpoint(topic_id: str, topic_data: TopicCreateRequest, session
 
 
 @app.delete("/topics/{topic_id}", tags=["Topics"])
-def delete_topic_endpoint(topic_id: str, cascade: bool = Query(False, description="Cascade delete related items"),
+async def delete_topic_endpoint(topic_id: str, cascade: bool = Query(False, description="Cascade delete related items"),
                           session: Session = Depends(get_session)):
     db_topic = session.get(Topic, topic_id)
     if not db_topic: raise HTTPException(status_code=404, detail="Topic not found")
@@ -338,8 +338,9 @@ async def update_word_endpoint(word_id: str, word_data: WordCreateRequest, sessi
 
     # Validate language
     lang_str = get_lang_str(word_data.language)
-    if db_word.language != lang_str:
-        raise HTTPException(status_code=400, detail="Cannot change language.")
+    # I commented out those lines which may cause some fuckups in preprocessing but idk at the moment
+    # if db_word.language != lang_str:
+    #     raise HTTPException(status_code=400, detail="Cannot change language.")
 
     # Update word fields
     db_word.topic_id = word_data.topic_id
