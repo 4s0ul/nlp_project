@@ -1,6 +1,6 @@
 <script>
   export let steps = [];
-  const labels = ['Сырой текст', 'Очистка', 'Лемматизация'];
+  const labels = ['Сырой текст', 'Очистка', 'Стемминг'];
 </script>
 
 <div class="pipeline-container">
