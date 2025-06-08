@@ -16,9 +16,16 @@ STOP_WORDS = {
 }
 
 TEXT_CLEANING_PATTERN = {
-    "english": re.compile(r"[^a-zA-Zа-яА-Я0-9]"),
-    "russian": re.compile(r"[^а-яА-Яa-zA-Z0-9]")
+    "english": re.compile(r"[^a-zA-Zа-яА-Я0-9 ]"),  # Note the space after 9
+    "russian": re.compile(r"[^а-яА-Яa-zA-Z0-9 ]")
 }
+
+def clean_text(text: str, lang: str = "english") -> str:
+    # Step 1: Remove unwanted characters (preserve letters, digits, and spaces)
+    text = TEXT_CLEANING_PATTERN[lang].sub("", text)
+    # Step 2: Replace multiple spaces with a single space
+    text = re.sub(r"\s{2,}", " ", text)
+    return text.strip()
 
 STEMMERS = {
     "english": PorterStemmer(),
@@ -52,7 +59,8 @@ class TextPreprocessor:  # This is the general preprocessor from the previous st
 
         text_lower = text.lower()
         # Clean numbers and special characters but keep spaces for word splitting
-        text_cleaned = TEXT_CLEANING_PATTERN[language].sub("", text_lower)
+        # text_cleaned = TEXT_CLEANING_PATTERN[language].sub("", text_lower)
+        text_cleaned = clean_text(text=text_lower, lang=language)
         words = text_cleaned.split()
         words = [w for w in words if w not in STOP_WORDS[language] and len(w) > 1]
 
