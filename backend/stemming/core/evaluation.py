@@ -7,7 +7,7 @@ class StemmingEvaluator:
     @staticmethod
     def analyze_stemming_quality(text: str, language: str, sample_size=20, top_n=10):
         stemmer = STEMMERS[language]
-        words = TextPreprocessor.preprocess(text, language).split()
+        cleaned_text, words = TextPreprocessor.preprocess(text, language).split()
         stems = [stemmer.stem(w) for w in words]
 
         stats = {

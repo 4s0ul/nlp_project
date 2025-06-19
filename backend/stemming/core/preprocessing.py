@@ -87,6 +87,6 @@ class TextPreprocessor:  # This is the general preprocessor from the previous st
         else:  # If no tokenizer, use stemmed words directly after NLTK stopword removal
             final_tokens = stemmed_words
 
-        return " ".join(final_tokens)
+        return text_cleaned, " ".join(final_tokens)
 
 

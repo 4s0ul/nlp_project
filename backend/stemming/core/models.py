@@ -125,7 +125,11 @@ class TopicResponse(SQLModel):
 class WordCreateRequest(SQLModel):
     topic_id: str
     raw_text: str
+    cleaned_text: Optional[str] = None
+    lemmatized_text: Optional[str] = None
     description_raw_text: str  # This will be used for triplet extraction
+    description_cleaned_text: Optional[str] = None
+    description_lemmatized_text: Optional[str] = None
     language: Lang
     info: Optional[str] = None
 

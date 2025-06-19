@@ -192,14 +192,14 @@ async def delete_topic_endpoint(topic_id: str, cascade: bool = Query(False, desc
 async def preprocess_text_endpoint(request: TextProcessRequest):
     lang_str = get_lang_str(request.language)
     # The TextPreprocessor.preprocess now includes the (placeholder) coreference resolution call if uncommented by user.
-    lemmatized = TextPreprocessor.preprocess(request.text, lang_str)
+    text_cleaned, lemmatized = TextPreprocessor.preprocess(request.text, lang_str)
     return PreprocessResponse(raw_text=request.text, language=request.language, lemmatized_text=lemmatized)
 
 
 @app.post("/vectorize/", response_model=VectorizeResponse, tags=["Processing"])
 async def vectorize_text_endpoint(request: TextProcessRequest):
     lang_str = get_lang_str(request.language)
-    lemmatized = TextPreprocessor.preprocess(request.text, lang_str)
+    cleaned_text, lemmatized = TextPreprocessor.preprocess(request.text, lang_str)
     if not lemmatized.strip(): raise HTTPException(status_code=400, detail="Empty after preprocessing.")
     vectorizer = get_vectorizer(request.language)
     vector_np = vectorizer.transform([lemmatized])[0]
@@ -215,14 +215,14 @@ async def create_word_endpoint(word_data: WordCreateRequest, session: Session = 
     if not word_raw: raise HTTPException(status_code=400, detail="Word raw_text empty.")
 
     # Lemmatized word (for ID and general processing) using TextPreprocessor
-    word_lemmatized_for_id = TextPreprocessor.preprocess(word_raw, lang_str)
+    cleaned_text, word_lemmatized_for_id = TextPreprocessor.preprocess(word_raw, lang_str)
     if not word_lemmatized_for_id: raise HTTPException(status_code=400, detail="Word empty after TextPreprocessor.")
     word_id = generate_sha256_id(f"{word_lemmatized_for_id}_{lang_str}")
 
     if not session.get(Topic, word_data.topic_id): raise HTTPException(status_code=404, detail="Topic not found.")
     if session.get(Word, word_id): raise HTTPException(status_code=409, detail="Word already exists.")
 
-    db_word = Word(id=word_id, topic_id=word_data.topic_id, raw_text=word_raw,
+    db_word = Word(id=word_id, topic_id=word_data.topic_id, raw_text=word_raw, cleaned_text=cleaned_text,
                    lemmatized_text=word_lemmatized_for_id,  # This is from TextPreprocessor
                    first_letter=word_lemmatized_for_id[0].lower() if word_lemmatized_for_id else None,
                    language=lang_str, info=word_data.info)
@@ -232,7 +232,7 @@ async def create_word_endpoint(word_data: WordCreateRequest, session: Session = 
     if not desc_raw: raise HTTPException(status_code=400, detail="Description raw_text empty.")
 
     # Lemmatized description (for vectorization and ID) using TextPreprocessor
-    desc_lemmatized_for_vec = TextPreprocessor.preprocess(desc_raw, lang_str)
+    cleaned_text, desc_lemmatized_for_vec = TextPreprocessor.preprocess(desc_raw, lang_str)
     if not desc_lemmatized_for_vec: raise HTTPException(status_code=400,
                                                         detail="Description empty after TextPreprocessor.")
     desc_id = generate_sha256_id(f"{desc_lemmatized_for_vec}_{lang_str}")
@@ -241,7 +241,7 @@ async def create_word_endpoint(word_data: WordCreateRequest, session: Session = 
     if db_description and db_description.word_id != word_id:
         raise HTTPException(status_code=409, detail="Desc content exists for another word.")
     if not db_description:
-        db_description = Description(id=desc_id, word_id=word_id, raw_text=desc_raw,
+        db_description = Description(id=desc_id, word_id=word_id, raw_text=desc_raw, cleaned_text=cleaned_text,
                                      lemmatized_text=desc_lemmatized_for_vec,  # From TextPreprocessor
                                      language=lang_str)
         session.add(db_description)
@@ -347,26 +347,31 @@ async def update_word_endpoint(word_id: str, word_data: WordCreateRequest, sessi
     db_word.info = word_data.info
     new_raw_word_text = word_data.raw_text.strip()
     if db_word.raw_text != new_raw_word_text:
-        new_lem_word = TextPreprocessor.preprocess(new_raw_word_text, lang_str)
+        cleaned_text, new_lem_word = TextPreprocessor.preprocess(new_raw_word_text, lang_str)
         if not new_lem_word:
             raise HTTPException(status_code=400, detail="New word raw_text empty after preprocess.")
         new_word_id = generate_sha256_id(f"{new_lem_word}_{lang_str}")
         if new_word_id != word_id:
             raise HTTPException(status_code=400, detail="Raw_text change alters ID. Not allowed.")
         db_word.raw_text = new_raw_word_text
+        db_word.cleaned_text = cleaned_text
         db_word.lemmatized_text = new_lem_word
+        db_word.language = word_data.language.name
         db_word.first_letter = new_lem_word[0].lower() if new_lem_word else None
 
     # Description update logic
+    # There should be some validation that such desc is not just the same idk
     new_desc_raw_text = word_data.description_raw_text.strip()
-    new_desc_lem_for_vec = TextPreprocessor.preprocess(new_desc_raw_text, lang_str)
-    if not new_desc_lem_for_vec:
-        raise HTTPException(status_code=400, detail="New description empty after preprocess.")
+    if not word_data.description_cleaned_text:
+        cleaned_text, new_desc_lem_for_vec = TextPreprocessor.preprocess(new_desc_raw_text, lang_str)
+        if not word_data.description_lemmatized_text:
+            if not new_desc_lem_for_vec:
+                raise HTTPException(status_code=400, detail="New description empty after preprocess.")
 
-    # Generate new description ID
-    new_desc_id = generate_sha256_id(f"{new_desc_lem_for_vec}_{lang_str}")
-    if session.get(Description, new_desc_id) and session.get(Description, new_desc_id).word_id != word_id:
-        raise HTTPException(status_code=409, detail="New description content exists for another word.")
+        # Generate new description ID
+        new_desc_id = generate_sha256_id(f"{new_desc_lem_for_vec}_{lang_str}")
+        if session.get(Description, new_desc_id) and session.get(Description, new_desc_id).word_id != word_id:
+            raise HTTPException(status_code=409, detail="New description content exists for another word.")
 
     # Check existing descriptions
     current_descriptions = session.exec(select(Description).where(Description.word_id == word_id)).all()
@@ -387,6 +392,7 @@ async def update_word_endpoint(word_id: str, word_data: WordCreateRequest, sessi
         id=new_desc_id,
         word_id=word_id,
         raw_text=new_desc_raw_text,
+        cleaned_text=cleaned_text,
         lemmatized_text=new_desc_lem_for_vec,
         language=lang_str,
         created_at=datetime.now(timezone.utc)
@@ -492,14 +498,14 @@ async def create_manual_triplet_endpoint(triplet_data: TripletCreateRequest, ses
         if lang_str == Lang.Russian.value and russian_triple_extractor:  # Use TripleExtractor's lemmatizer
             obj_lit_lemma_val = russian_triple_extractor._lemmatize_token_text(triplet_data.object_literal_raw)
         else:  # Fallback for other languages or if Natasha not available
-            obj_lit_lemma_val = TextPreprocessor.preprocess(triplet_data.object_literal_raw, lang_str)
+            cleaned_text, obj_lit_lemma_val = TextPreprocessor.preprocess(triplet_data.object_literal_raw, lang_str)
 
     pred_lemma_val = triplet_data.predicate_lemma
     if not pred_lemma_val and triplet_data.predicate_raw:  # Auto-fill predicate_lemma if not provided
         if lang_str == Lang.Russian.value and russian_triple_extractor:
             pred_lemma_val = russian_triple_extractor._lemmatize_token_text(triplet_data.predicate_raw)
         else:
-            pred_lemma_val = TextPreprocessor.preprocess(triplet_data.predicate_raw, lang_str)
+            cleaned_text, pred_lemma_val = TextPreprocessor.preprocess(triplet_data.predicate_raw, lang_str)
 
     if triplet_data.object_id:
         obj_word = session.get(Word, triplet_data.object_id)
@@ -562,7 +568,7 @@ async def search_words_endpoint(q: str, lang: Optional[Lang] = Query(None), topi
     lang_str_proc = get_lang_str(lang) if lang else None
     if lang_str_proc:
         try:
-            proc_cand = TextPreprocessor.preprocess(q, lang_str_proc);
+            cleaned_text, proc_cand = TextPreprocessor.preprocess(q, lang_str_proc);
             q_processed = proc_cand if proc_cand else q
         except Exception:
             pass  # Keep raw q
